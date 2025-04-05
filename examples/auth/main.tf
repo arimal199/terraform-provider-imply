@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     imply = {
-      source = "registry.terraform.io/arimal199/imply" // registry.opentofu.org/arimal199/imply
+      source = "registry.opentofu.org/arimal199/imply"
       # version = "0.0.1" // TODO: add version
     }
   }
@@ -14,8 +14,14 @@ provider "imply" {
 
 data "imply_users" "_" {}
 
-# data "imply_user" "_" {} // TODO: add user data source
+data "imply_user" "_" {
+  id = "16505d53-14c5-433a-84ca-00bbb9a2ae21"
+}
 
 data "imply_groups" "_" {}
+
+data "imply_group" "_" {
+  id = "b3b28dce-ac2a-4e5f-a840-0641a647a737"
+}
 
 data "imply_permissions" "_" {}

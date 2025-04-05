@@ -10,12 +10,20 @@ type PermissionModel struct {
 	Resources []types.String `tfsdk:"resources"`
 }
 
+type PermissionsModel struct {
+	Items []PermissionModel `tfsdk:"items"`
+}
+
 type GroupModel struct {
 	ID          types.String      `tfsdk:"id"`
 	Name        types.String      `tfsdk:"name"`
 	ReadOnly    types.Bool        `tfsdk:"read_only"`
 	Permissions []PermissionModel `tfsdk:"permissions"`
 	UserCount   types.Int64       `tfsdk:"user_count"`
+}
+
+type GroupsModel struct {
+	Items []GroupModel `tfsdk:"items"`
 }
 
 type UserModel struct {
@@ -31,4 +39,8 @@ type UserModel struct {
 	Identities    []types.String    `tfsdk:"identities"`
 	Actions       []types.String    `tfsdk:"actions"`
 	CreatedOn     types.String      `tfsdk:"created_on"`
+}
+
+type UsersModel struct {
+	Items []UserModel `tfsdk:"items"`
 }

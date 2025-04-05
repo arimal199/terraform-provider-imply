@@ -13,31 +13,39 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &groupsDataSource{}
-	_ datasource.DataSourceWithConfigure = &groupsDataSource{}
+	_ datasource.DataSource              = &groupDataSource{}
+	_ datasource.DataSourceWithConfigure = &groupDataSource{}
 )
 
-type groupsDataSourceModel struct {
-	Items []GroupModel `tfsdk:"items"`
+func NewGroupDataSource() datasource.DataSource {
+	return &groupDataSource{}
 }
 
-func NewGroupsDataSource() datasource.DataSource {
-	return &groupsDataSource{}
-}
-
-type groupsDataSource struct {
+type groupDataSource struct {
 	client *client.Client
 }
 
-func (d *groupsDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_groups"
+func (d *groupDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_group"
 }
 
-func (d *groupsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *groupDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"items": schema.ListNestedAttribute{
+			"id": schema.StringAttribute{
+				Required: true,
+			},
+			"name": schema.StringAttribute{
 				Computed: true,
+				Optional: true,
+			},
+			"read_only": schema.BoolAttribute{
+				Computed: true,
+				Optional: true,
+			},
+			"permissions": schema.ListNestedAttribute{
+				Computed: true,
+				Optional: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
@@ -48,114 +56,76 @@ func (d *groupsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest,
 							Computed: true,
 							Optional: true,
 						},
-						"read_only": schema.BoolAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"permissions": schema.ListNestedAttribute{
-							Computed: true,
-							Optional: true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"id": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"name": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"resources": schema.ListAttribute{
-										Computed:    true,
-										ElementType: types.StringType,
-										Optional:    true,
-									},
-								},
-							},
-						},
-						"user_count": schema.Int64Attribute{
-							Computed: true,
-							Optional: true,
+						"resources": schema.ListAttribute{
+							Computed:    true,
+							ElementType: types.StringType,
+							Optional:    true,
 						},
 					},
 				},
+			},
+			"user_count": schema.Int64Attribute{
+				Computed: true,
+				Optional: true,
 			},
 		},
 	}
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (d *groupsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state groupsDataSourceModel
+func (d *groupDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state GroupModel
 
-	response, err := d.client.Get("/groups")
+	// Read Terraform configuration data into the model
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Get group by ID
+	group, err := d.client.Get(fmt.Sprintf("/groups/%s", state.ID.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Read Imply Groups",
+			"Unable to Read Imply Group",
 			err.Error(),
 		)
 		return
 	}
 
-	// Try to get groups from the response
-	groups, ok := response["values"].([]interface{})
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Invalid Response Format",
-			fmt.Sprintf("Expected []interface{} in values field, got: %T", response["values"]),
-		)
-		return
+	// Map response body to model
+	state.ID = types.StringValue(fmt.Sprintf("%v", group["id"]))
+	state.Name = types.StringValue(fmt.Sprintf("%v", group["name"]))
+
+	// Handle read_only
+	if readOnly, ok := group["readOnly"].(bool); ok {
+		state.ReadOnly = types.BoolValue(readOnly)
 	}
 
-	// Map response body to model
-	for _, rawGroup := range groups {
-		group, ok := rawGroup.(map[string]interface{})
-		if !ok {
-			resp.Diagnostics.AddError(
-				"Invalid Group Data",
-				fmt.Sprintf("Expected map[string]interface{}, got: %T", rawGroup),
-			)
-			return
-		}
+	// Handle user_count
+	if userCount, ok := group["userCount"].(float64); ok {
+		state.UserCount = types.Int64Value(int64(userCount))
+	}
 
-		groupState := GroupModel{
-			ID:   types.StringValue(fmt.Sprintf("%v", group["id"])),
-			Name: types.StringValue(fmt.Sprintf("%v", group["name"])),
-		}
+	// Handle permissions
+	if perms, ok := group["permissions"].([]any); ok && len(perms) > 0 {
+		for _, p := range perms {
+			perm, ok := p.(map[string]any)
+			if !ok {
+				continue
+			}
+			permModel := PermissionModel{
+				ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
+				Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
+			}
 
-		// Handle read_only
-		if readOnly, ok := group["readOnly"].(bool); ok {
-			groupState.ReadOnly = types.BoolValue(readOnly)
-		}
-
-		// Handle user_count
-		if userCount, ok := group["userCount"].(float64); ok {
-			groupState.UserCount = types.Int64Value(int64(userCount))
-		}
-
-		// Handle permissions
-		if perms, ok := group["permissions"].([]interface{}); ok && len(perms) > 0 {
-			for _, p := range perms {
-				perm, ok := p.(map[string]interface{})
-				if !ok {
-					continue
+			// Handle resources
+			if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
+				for _, r := range resources {
+					permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
 				}
-				permModel := PermissionModel{
-					ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
-					Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
-				}
-
-				// Handle resources
-				if resources, ok := perm["resources"].([]interface{}); ok && len(resources) > 0 {
-					for _, r := range resources {
-						permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
-					}
-					groupState.Permissions = append(groupState.Permissions, permModel)
-				}
+				state.Permissions = append(state.Permissions, permModel)
 			}
 		}
-
-		state.Items = append(state.Items, groupState)
 	}
 
 	// Set state
@@ -167,7 +137,7 @@ func (d *groupsDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *groupsDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *groupDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}

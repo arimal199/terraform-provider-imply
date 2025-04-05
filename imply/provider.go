@@ -162,7 +162,9 @@ func (p *implyProvider) Configure(ctx context.Context, req provider.ConfigureReq
 func (p *implyProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		auth.NewUsersDataSource,
+		auth.NewUserDataSource,
 		auth.NewGroupsDataSource,
+		auth.NewGroupDataSource,
 		auth.NewPermissionsDataSource,
 	}
 }

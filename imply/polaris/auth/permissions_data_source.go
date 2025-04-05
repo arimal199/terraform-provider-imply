@@ -17,10 +17,6 @@ var (
 	_ datasource.DataSourceWithConfigure = &permissionsDataSource{}
 )
 
-type permissionsDataSourceModel struct {
-	Items []PermissionModel `tfsdk:"items"`
-}
-
 func NewPermissionsDataSource() datasource.DataSource {
 	return &permissionsDataSource{}
 }
@@ -62,7 +58,7 @@ func (d *permissionsDataSource) Schema(_ context.Context, _ datasource.SchemaReq
 
 // Read refreshes the Terraform state with the latest data.
 func (d *permissionsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state permissionsDataSourceModel
+	var state PermissionsModel
 
 	response, err := d.client.Get("/permissions")
 	if err != nil {
