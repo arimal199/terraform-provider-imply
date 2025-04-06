@@ -5,11 +5,9 @@ import (
 	"fmt"
 
 	"github.com/arimal199/terraform-provider-imply/imply/client"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	// "github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -181,76 +179,88 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	// Handle permissions
-	if perms, ok := user["permissions"].([]any); ok && len(perms) > 0 {
-		for _, p := range perms {
-			perm, ok := p.(map[string]any)
-			if !ok {
-				continue
-			}
-			permModel := PermissionModel{
-				ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
-				Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
-			}
-
-			// Handle resources
-			if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
-				for _, r := range resources {
-					permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
+	if perms, ok := user["permissions"].([]any); ok {
+		if len(perms) > 0 {
+			for _, p := range perms {
+				perm, ok := p.(map[string]any)
+				if !ok {
+					continue
 				}
-				state.Permissions = append(state.Permissions, permModel)
+				permModel := PermissionModel{
+					ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
+					Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
+				}
+
+				// Handle resources
+				if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
+					for _, r := range resources {
+						permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
+					}
+					state.Permissions = append(state.Permissions, permModel)
+				}
 			}
+		} else {
+			state.Permissions = []PermissionModel{}
 		}
 	}
 
 	// Handle groups
-	if groups, ok := user["groups"].([]any); ok && len(groups) > 0 {
-		for _, g := range groups {
-			group, ok := g.(map[string]any)
-			if !ok {
-				continue
-			}
-			groupModel := GroupModel{
-				ID:   types.StringValue(fmt.Sprintf("%v", group["id"])),
-				Name: types.StringValue(fmt.Sprintf("%v", group["name"])),
-			}
+	if groups, ok := user["groups"].([]any); ok {
+		if len(groups) > 0 {
+			for _, g := range groups {
+				group, ok := g.(map[string]any)
+				if !ok {
+					continue
+				}
+				groupModel := GroupModel{
+					ID:   types.StringValue(fmt.Sprintf("%v", group["id"])),
+					Name: types.StringValue(fmt.Sprintf("%v", group["name"])),
+				}
 
-			if readOnly, ok := group["readOnly"].(bool); ok {
-				groupModel.ReadOnly = types.BoolValue(readOnly)
-			}
-			if userCount, ok := group["userCount"].(float64); ok {
-				groupModel.UserCount = types.Int64Value(int64(userCount))
-			}
+				if readOnly, ok := group["readOnly"].(bool); ok {
+					groupModel.ReadOnly = types.BoolValue(readOnly)
+				}
+				if userCount, ok := group["userCount"].(float64); ok {
+					groupModel.UserCount = types.Int64Value(int64(userCount))
+				}
 
-			// Handle group permissions
-			if perms, ok := group["permissions"].([]any); ok && len(perms) > 0 {
-				for _, p := range perms {
-					perm, ok := p.(map[string]any)
-					if !ok {
-						continue
-					}
-					permModel := PermissionModel{
-						ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
-						Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
-					}
-
-					// Handle resources
-					if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
-						for _, r := range resources {
-							permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
+				// Handle group permissions
+				if perms, ok := group["permissions"].([]any); ok && len(perms) > 0 {
+					for _, p := range perms {
+						perm, ok := p.(map[string]any)
+						if !ok {
+							continue
 						}
-						groupModel.Permissions = append(groupModel.Permissions, permModel)
+						permModel := PermissionModel{
+							ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
+							Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
+						}
+
+						// Handle resources
+						if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
+							for _, r := range resources {
+								permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
+							}
+							groupModel.Permissions = append(groupModel.Permissions, permModel)
+						}
 					}
 				}
-			}
 
-			state.Groups = append(state.Groups, groupModel)
+				state.Groups = append(state.Groups, groupModel)
+			}
+		} else {
+			state.Groups = []GroupModel{}
 		}
 	}
 
 	// Handle arrays
-	if identities, ok := user["identities"].([]any); ok && len(identities) > 0 {
-		for _, identity := range identities {
-			state.Identities = append(state.Identities, types.StringValue(fmt.Sprintf("%v", identity)))
+	if identities, ok := user["identities"].([]any); ok {
+		if len(identities) > 0 {
+			for _, identity := range identities {
+				state.Identities = append(state.Identities, types.StringValue(fmt.Sprintf("%v", identity)))
+			}
+		} else {
+			state.Identities = []types.String{}
 		}
 	}
 

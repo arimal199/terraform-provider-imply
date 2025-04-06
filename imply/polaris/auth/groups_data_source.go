@@ -17,7 +17,6 @@ var (
 	_ datasource.DataSourceWithConfigure = &groupsDataSource{}
 )
 
-
 func NewGroupsDataSource() datasource.DataSource {
 	return &groupsDataSource{}
 }
