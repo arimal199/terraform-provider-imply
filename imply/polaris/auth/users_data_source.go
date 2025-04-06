@@ -187,11 +187,24 @@ func (d *usersDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		}
 
 		userState := UserModel{
-			ID:        types.StringValue(fmt.Sprintf("%v", user["id"])),
-			Username:  types.StringValue(fmt.Sprintf("%v", user["username"])),
-			Email:     types.StringValue(fmt.Sprintf("%v", user["email"])),
-			FirstName: types.StringValue(fmt.Sprintf("%v", user["firstName"])),
-			LastName:  types.StringValue(fmt.Sprintf("%v", user["lastName"])),
+			ID:       types.StringValue(fmt.Sprintf("%v", user["id"])),
+			Username: types.StringValue(fmt.Sprintf("%v", user["username"])),
+			Email:    types.StringValue(fmt.Sprintf("%v", user["email"])),
+		}
+
+		if firstName, ok := user["firstName"].(string); ok {
+			if firstName == "" {
+				userState.FirstName = types.StringNull()
+			} else {
+				userState.FirstName = types.StringValue(firstName)
+			}
+		}
+		if lastName, ok := user["lastName"].(string); ok {
+			if lastName == "" {
+				userState.LastName = types.StringNull()
+			} else {
+				userState.LastName = types.StringValue(lastName)
+			}
 		}
 
 		// Handle boolean fields

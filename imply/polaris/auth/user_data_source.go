@@ -156,8 +156,21 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	state.ID = types.StringValue(fmt.Sprintf("%v", user["id"]))
 	state.Username = types.StringValue(fmt.Sprintf("%v", user["username"]))
 	state.Email = types.StringValue(fmt.Sprintf("%v", user["email"]))
-	state.FirstName = types.StringValue(fmt.Sprintf("%v", user["firstName"]))
-	state.LastName = types.StringValue(fmt.Sprintf("%v", user["lastName"]))
+
+	if firstName, ok := user["firstName"].(string); ok {
+		if firstName == "" {
+			state.FirstName = types.StringNull()
+		} else {
+			state.FirstName = types.StringValue(fmt.Sprintf("%v", user["firstName"]))
+		}
+	}
+	if lastName, ok := user["lastName"].(string); ok {
+		if lastName == "" {
+			state.LastName = types.StringNull()
+		} else {
+			state.LastName = types.StringValue(fmt.Sprintf("%v", user["lastName"]))
+		}
+	}
 
 	// Handle boolean fields
 	if enabled, ok := user["enabled"].(bool); ok {
