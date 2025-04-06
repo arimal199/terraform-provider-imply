@@ -44,7 +44,7 @@ func NewClient(host, apiKey *string) (*Client, error) {
 }
 
 // doRequest performs the actual HTTP request to the API.
-func (c *Client) doRequest(method, path string, body interface{}) (map[string]interface{}, error) {
+func (c *Client) doRequest(method, path string, body any) (map[string]any, error) {
 	// Prepare the request body if necessary
 	var reqBody io.Reader
 	if body != nil {
@@ -80,12 +80,12 @@ func (c *Client) doRequest(method, path string, body interface{}) (map[string]in
 	}
 
 	// Handle non-OK status codes
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
 		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	// Unmarshal the response JSON
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("error unmarshaling response: %w", err)
 	}
@@ -96,17 +96,17 @@ func (c *Client) doRequest(method, path string, body interface{}) (map[string]in
 // HTTP Methods for API interaction
 
 // Get performs a GET request to the specified path.
-func (c *Client) Get(path string) (map[string]interface{}, error) {
+func (c *Client) Get(path string) (map[string]any, error) {
 	return c.doRequest(http.MethodGet, path, nil)
 }
 
 // Post performs a POST request to the specified path with the given body.
-func (c *Client) Post(path string, body interface{}) (map[string]interface{}, error) {
+func (c *Client) Post(path string, body any) (map[string]any, error) {
 	return c.doRequest(http.MethodPost, path, body)
 }
 
 // Put performs a PUT request to the specified path with the given body.
-func (c *Client) Put(path string, body interface{}) (map[string]interface{}, error) {
+func (c *Client) Put(path string, body any) (map[string]any, error) {
 	return c.doRequest(http.MethodPut, path, body)
 }
 

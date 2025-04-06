@@ -12,7 +12,7 @@ provider "imply" {
   # api_key = "" // or use the IMPLY_API_KEY environment variable
 }
 
-data "imply_users" "_" {}
+/* data "imply_users" "_" {}
 
 data "imply_user" "_" {
   id = "16505d53-14c5-433a-84ca-00bbb9a2ae21"
@@ -25,3 +25,8 @@ data "imply_group" "_" {
 }
 
 data "imply_permissions" "_" {}
+ */
+
+resource "imply_user" "user" {
+  username = "foo2@bar.com"
+}
