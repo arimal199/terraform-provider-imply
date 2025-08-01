@@ -6,7 +6,7 @@ replace github.com/arimal199/terraform-provider-imply => ./
 
 require (
 	github.com/arimal199/terraform-provider-imply v0.0.0
-	github.com/hashicorp/terraform-plugin-framework v1.15.0
+	github.com/hashicorp/terraform-plugin-framework v1.15.1
 )
 
 require (
