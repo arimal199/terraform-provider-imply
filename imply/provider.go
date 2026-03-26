@@ -1,3 +1,5 @@
+// Copyright (c) HashiCorp, Inc.
+
 package imply
 
 import (
@@ -171,5 +173,9 @@ func (p *implyProvider) DataSources(_ context.Context) []func() datasource.DataS
 
 // Resources defines the resources implemented in the provider.
 func (p *implyProvider) Resources(_ context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		auth.NewUserResource,
+		auth.NewGroupResource,
+		auth.NewGroupMemberResource,
+	}
 }
