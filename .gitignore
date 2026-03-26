@@ -37,3 +37,6 @@ website/vendor
 .envrc
 .terraformrc
 .tofurc
+
+**/.gocache
+.gomodcache
