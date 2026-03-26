@@ -84,6 +84,10 @@ func (c *Client) doRequest(method, path string, body any) (map[string]any, error
 		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
+	if len(respBody) == 0 {
+		return nil, nil
+	}
+
 	// Unmarshal the response JSON
 	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
@@ -114,4 +118,9 @@ func (c *Client) Put(path string, body any) (map[string]any, error) {
 func (c *Client) Delete(path string) error {
 	_, err := c.doRequest(http.MethodDelete, path, nil)
 	return err
+}
+
+// DeleteWithBody performs a DELETE request with a JSON body.
+func (c *Client) DeleteWithBody(path string, body any) (map[string]any, error) {
+	return c.doRequest(http.MethodDelete, path, body)
 }
