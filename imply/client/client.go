@@ -1,8 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,78 +18,68 @@ type Client struct {
 	ApiKey     string
 }
 
+func normalizeHost(host string) string {
+	hostURL := strings.TrimSpace(host)
+	hostURL = strings.Replace(hostURL, ".app.imply.io", ".api.imply.io", 1)
+	hostURL = strings.TrimRight(hostURL, "/")
+	return hostURL + "/v1"
+}
+
 // NewClient creates and returns a new Client.
 func NewClient(host, apiKey *string) (*Client, error) {
-	if host == nil || *host == "" {
+	if host == nil || strings.TrimSpace(*host) == "" {
 		return nil, errors.New("host cannot be nil or empty")
 	}
-
-	if apiKey == nil || *apiKey == "" {
+	if apiKey == nil || strings.TrimSpace(*apiKey) == "" {
 		return nil, errors.New("apiKey cannot be nil or empty")
 	}
 
-	hostURL := *host
-	// Replace .app.imply.io with .api.imply.io
-	hostURL = strings.Replace(hostURL, ".app.imply.io", ".api.imply.io", 1)
-
-	// Ensure host URL ends with a slash
-	if !strings.HasSuffix(hostURL, "/") {
-		hostURL += "/"
-	}
-
 	return &Client{
-		HostURL:    hostURL + "v1",
+		HostURL:    normalizeHost(*host),
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
-		ApiKey:     "Basic " + *apiKey,
+		ApiKey:     "Basic " + strings.TrimSpace(*apiKey),
 	}, nil
 }
 
 // doRequest performs the actual HTTP request to the API.
 func (c *Client) doRequest(method, path string, body any) (map[string]any, error) {
-	// Prepare the request body if necessary
 	var reqBody io.Reader
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling request body: %w", err)
 		}
-		reqBody = strings.NewReader(string(jsonBody))
+		reqBody = bytes.NewReader(jsonBody)
 	}
 
-	// Create the HTTP request
 	req, err := http.NewRequest(method, c.HostURL+path, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	// Set the headers
 	req.Header.Set("Authorization", c.ApiKey)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	// Execute the request
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
-	// Handle non-OK status codes
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("status: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
-	if len(respBody) == 0 {
-		return nil, nil
+	if len(respBody) == 0 || resp.StatusCode == http.StatusNoContent {
+		return map[string]any{}, nil
 	}
 
-	// Unmarshal the response JSON
 	var result map[string]any
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("error unmarshaling response: %w", err)
@@ -99,30 +88,16 @@ func (c *Client) doRequest(method, path string, body any) (map[string]any, error
 	return result, nil
 }
 
-// HTTP Methods for API interaction
-
-// Get performs a GET request to the specified path.
 func (c *Client) Get(path string) (map[string]any, error) {
 	return c.doRequest(http.MethodGet, path, nil)
 }
-
-// Post performs a POST request to the specified path with the given body.
 func (c *Client) Post(path string, body any) (map[string]any, error) {
 	return c.doRequest(http.MethodPost, path, body)
 }
-
-// Put performs a PUT request to the specified path with the given body.
 func (c *Client) Put(path string, body any) (map[string]any, error) {
 	return c.doRequest(http.MethodPut, path, body)
 }
-
-// Delete performs a DELETE request to the specified path.
 func (c *Client) Delete(path string) error {
 	_, err := c.doRequest(http.MethodDelete, path, nil)
 	return err
-}
-
-// DeleteWithBody performs a DELETE request with a JSON body.
-func (c *Client) DeleteWithBody(path string, body any) (map[string]any, error) {
-	return c.doRequest(http.MethodDelete, path, body)
 }
