@@ -1,3 +1,5 @@
+// Copyright IBM Corp. 2026
+
 package auth
 
 import (
@@ -33,13 +35,16 @@ func (d *groupMembersDataSource) Metadata(_ context.Context, req datasource.Meta
 }
 
 func (d *groupMembersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{Attributes: map[string]schema.Attribute{
-		"group_id": schema.StringAttribute{Required: true},
-		"top":      schema.Int64Attribute{Optional: true},
-		"skip":     schema.Int64Attribute{Optional: true},
-		"search":   schema.StringAttribute{Optional: true},
-		"items":    schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: userAttributes()}},
-	}}
+	resp.Schema = schema.Schema{
+		Description: "Reads members of an Imply group.",
+		Attributes: map[string]schema.Attribute{
+			"group_id": schema.StringAttribute{Required: true},
+			"top":      schema.Int64Attribute{Optional: true},
+			"skip":     schema.Int64Attribute{Optional: true},
+			"search":   schema.StringAttribute{Optional: true},
+			"items":    schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: userAttributes()}},
+		},
+	}
 }
 
 func (d *groupMembersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

@@ -1,3 +1,5 @@
+// Copyright IBM Corp. 2026
+
 package imply
 
 import (
@@ -180,5 +182,7 @@ func (p *implyProvider) DataSources(_ context.Context) []func() datasource.DataS
 func (p *implyProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		auth.NewUserResource,
+		auth.NewGroupResource,
+		auth.NewGroupMemberResource,
 	}
 }

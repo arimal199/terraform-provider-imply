@@ -22,7 +22,7 @@ jobs:
       - run: go mod download
       - uses: golangci/golangci-lint-action@4696ba8babb6127d732c3c6dde519db15edab9ea # v6.5.1
         with:
-          version: latest
+          version: v2.11.4
           args: --timeout=5m
   release_check:
     runs-on: ubuntu-latest

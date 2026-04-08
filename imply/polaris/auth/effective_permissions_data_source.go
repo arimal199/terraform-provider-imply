@@ -1,3 +1,5 @@
+// Copyright IBM Corp. 2026
+
 package auth
 
 import (
@@ -31,10 +33,13 @@ func (d *effectivePermissionsDataSource) Metadata(_ context.Context, req datasou
 }
 
 func (d *effectivePermissionsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{Attributes: map[string]schema.Attribute{
-		"user_id": schema.StringAttribute{Required: true},
-		"items":   schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: permissionAttributes()}},
-	}}
+	resp.Schema = schema.Schema{
+		Description: "Reads effective permissions for an Imply user.",
+		Attributes: map[string]schema.Attribute{
+			"user_id": schema.StringAttribute{Required: true},
+			"items":   schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: permissionAttributes()}},
+		},
+	}
 }
 
 func (d *effectivePermissionsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
