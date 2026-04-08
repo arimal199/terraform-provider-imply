@@ -101,3 +101,6 @@ func (c *Client) Delete(path string) error {
 	_, err := c.doRequest(http.MethodDelete, path, nil)
 	return err
 }
+func (c *Client) DeleteWithBody(path string, body any) (map[string]any, error) {
+	return c.doRequest(http.MethodDelete, path, body)
+}

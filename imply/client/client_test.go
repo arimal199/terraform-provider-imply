@@ -1,6 +1,7 @@
 package client
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,6 +52,29 @@ func TestNoContentDelete(t *testing.T) {
 	key := "token"
 	c, _ := NewClient(&host, &key)
 	if err := c.Delete("/users/1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteWithBody(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(body) != `{"id":"u1"}` {
+			t.Fatalf("unexpected request body: %s", string(body))
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer ts.Close()
+	host := ts.URL
+	key := "token"
+	c, _ := NewClient(&host, &key)
+	if _, err := c.DeleteWithBody("/groups/g1/members", map[string]string{"id": "u1"}); err != nil {
 		t.Fatal(err)
 	}
 }
