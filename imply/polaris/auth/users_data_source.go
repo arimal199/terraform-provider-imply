@@ -1,30 +1,32 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2026
 
 package auth
 
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/arimal199/terraform-provider-imply/imply/client"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// Ensure the implementation satisfies the expected interfaces.
 var (
 	_ datasource.DataSource              = &usersDataSource{}
 	_ datasource.DataSourceWithConfigure = &usersDataSource{}
 )
 
-func NewUsersDataSource() datasource.DataSource {
-	return &usersDataSource{}
-}
+func NewUsersDataSource() datasource.DataSource { return &usersDataSource{} }
 
-type usersDataSource struct {
-	client *client.Client
+type usersDataSource struct{ client *client.Client }
+
+type usersDataSourceModel struct {
+	Top    types.Int64  `tfsdk:"top"`
+	Skip   types.Int64  `tfsdk:"skip"`
+	Search types.String `tfsdk:"search"`
+	Items  []UserModel  `tfsdk:"items"`
 }
 
 func (d *usersDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -32,312 +34,68 @@ func (d *usersDataSource) Metadata(_ context.Context, req datasource.MetadataReq
 }
 
 func (d *usersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = schema.Schema{
-		Attributes: map[string]schema.Attribute{
-			"items": schema.ListNestedAttribute{
-				Computed: true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"username": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"email": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"first_name": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"last_name": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"enabled": schema.BoolAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"email_verified": schema.BoolAttribute{
-							Computed: true,
-							Optional: true,
-						},
-						"permissions": schema.ListNestedAttribute{
-							Computed: true,
-							Optional: true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"id": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"name": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"resources": schema.ListAttribute{
-										Computed:    true,
-										ElementType: types.StringType,
-										Optional:    true,
-									},
-								},
-							},
-						},
-						"groups": schema.ListNestedAttribute{
-							Computed: true,
-							Optional: true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"id": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"name": schema.StringAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"read_only": schema.BoolAttribute{
-										Computed: true,
-										Optional: true,
-									},
-									"permissions": schema.ListNestedAttribute{
-										Computed: true,
-										Optional: true,
-										NestedObject: schema.NestedAttributeObject{
-											Attributes: map[string]schema.Attribute{
-												"id": schema.StringAttribute{
-													Computed: true,
-													Optional: true,
-												},
-												"name": schema.StringAttribute{
-													Computed: true,
-													Optional: true,
-												},
-												"resources": schema.ListAttribute{
-													Computed:    true,
-													ElementType: types.StringType,
-													Optional:    true,
-												},
-											},
-										},
-									},
-									"user_count": schema.Int64Attribute{
-										Computed: true,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"identities": schema.ListAttribute{
-							Computed:    true,
-							ElementType: types.StringType,
-							Optional:    true,
-						},
-						"actions": schema.ListAttribute{
-							Computed:    true,
-							ElementType: types.StringType,
-							Optional:    true,
-						},
-						"created_on": schema.StringAttribute{
-							Computed: true,
-							Optional: true,
-						},
-					},
-				},
-			},
-		},
-	}
+	resp.Schema = schema.Schema{Attributes: map[string]schema.Attribute{
+		"top":    schema.Int64Attribute{Optional: true},
+		"skip":   schema.Int64Attribute{Optional: true},
+		"search": schema.StringAttribute{Optional: true},
+		"items":  schema.ListNestedAttribute{Computed: true, NestedObject: schema.NestedAttributeObject{Attributes: userAttributes()}},
+	}}
 }
 
-// Read refreshes the Terraform state with the latest data.
 func (d *usersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state UsersModel
-
-	response, err := d.client.Get("/users")
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Imply Users",
-			err.Error(),
-		)
-		return
-	}
-
-	// Try to get users from the response
-	users, ok := response["values"].([]any)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Invalid Response Format",
-			fmt.Sprintf("Expected []any in values field, got: %T", response["values"]),
-		)
-		return
-	}
-
-	// Map response body to model
-	for _, rawUser := range users {
-		user, ok := rawUser.(map[string]interface{})
-		if !ok {
-			resp.Diagnostics.AddError(
-				"Invalid User Data",
-				fmt.Sprintf("Expected map[string]interface{}, got: %T", rawUser),
-			)
-			return
-		}
-
-		userState := UserModel{
-			ID:       types.StringValue(fmt.Sprintf("%v", user["id"])),
-			Username: types.StringValue(fmt.Sprintf("%v", user["username"])),
-			Email:    types.StringValue(fmt.Sprintf("%v", user["email"])),
-		}
-
-		if firstName, ok := user["firstName"].(string); ok {
-			if firstName == "" {
-				userState.FirstName = types.StringNull()
-			} else {
-				userState.FirstName = types.StringValue(firstName)
-			}
-		}
-		if lastName, ok := user["lastName"].(string); ok {
-			if lastName == "" {
-				userState.LastName = types.StringNull()
-			} else {
-				userState.LastName = types.StringValue(lastName)
-			}
-		}
-
-		// Handle boolean fields
-		if enabled, ok := user["enabled"].(bool); ok {
-			userState.Enabled = types.BoolValue(enabled)
-		}
-		if emailVerified, ok := user["emailVerified"].(bool); ok {
-			userState.EmailVerified = types.BoolValue(emailVerified)
-		}
-
-		// Handle permissions
-		if perms, ok := user["permissions"].([]any); ok {
-			if len(perms) > 0 {
-				for _, p := range perms {
-					perm, ok := p.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					permModel := PermissionModel{
-						ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
-						Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
-					}
-
-					// Handle resources
-					if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
-						for _, r := range resources {
-							permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
-						}
-						userState.Permissions = append(userState.Permissions, permModel)
-					}
-				}
-			} else {
-				userState.Permissions = []PermissionModel{}
-			}
-		}
-
-		// Handle groups
-		if groups, ok := user["groups"].([]any); ok {
-			if len(groups) > 0 {
-				for _, g := range groups {
-					group, ok := g.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					groupModel := GroupModel{
-						ID:   types.StringValue(fmt.Sprintf("%v", group["id"])),
-						Name: types.StringValue(fmt.Sprintf("%v", group["name"])),
-					}
-
-					if readOnly, ok := group["readOnly"].(bool); ok {
-						groupModel.ReadOnly = types.BoolValue(readOnly)
-					}
-					if userCount, ok := group["userCount"].(float64); ok {
-						groupModel.UserCount = types.Int64Value(int64(userCount))
-					}
-
-					// Handle group permissions
-					if perms, ok := group["permissions"].([]any); ok && len(perms) > 0 {
-						for _, p := range perms {
-							perm, ok := p.(map[string]interface{})
-							if !ok {
-								continue
-							}
-							permModel := PermissionModel{
-								ID:   types.StringValue(fmt.Sprintf("%v", perm["id"])),
-								Name: types.StringValue(fmt.Sprintf("%v", perm["name"])),
-							}
-
-							// Handle resources
-							if resources, ok := perm["resources"].([]any); ok && len(resources) > 0 {
-								for _, r := range resources {
-									permModel.Resources = append(permModel.Resources, types.StringValue(fmt.Sprintf("%v", r)))
-								}
-								groupModel.Permissions = append(groupModel.Permissions, permModel)
-							}
-						}
-					}
-
-					userState.Groups = append(userState.Groups, groupModel)
-				}
-			} else {
-				userState.Groups = []GroupModel{}
-			}
-		}
-
-		// Handle arrays
-		if identities, ok := user["identities"].([]any); ok {
-			if len(identities) > 0 {
-				for _, identity := range identities {
-					userState.Identities = append(userState.Identities, types.StringValue(fmt.Sprintf("%v", identity)))
-				}
-			} else {
-				userState.Identities = []types.String{}
-			}
-		}
-
-		if actions, ok := user["actions"].([]any); ok && len(actions) > 0 {
-			for _, action := range actions {
-				userState.Actions = append(userState.Actions, types.StringValue(fmt.Sprintf("%v", action)))
-			}
-		}
-
-		// Handle timestamps
-		if createdOn, ok := user["createdOn"].(string); ok {
-			userState.CreatedOn = types.StringValue(createdOn)
-		}
-
-		state.Items = append(state.Items, userState)
-	}
-
-	// Set state
-	diags := resp.State.Set(ctx, &state)
-	resp.Diagnostics.Append(diags...)
+	var state usersDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	q := url.Values{}
+	if !state.Top.IsNull() {
+		q.Set("top", fmt.Sprintf("%d", state.Top.ValueInt64()))
+	}
+	if !state.Skip.IsNull() {
+		q.Set("skip", fmt.Sprintf("%d", state.Skip.ValueInt64()))
+	}
+	if !state.Search.IsNull() && state.Search.ValueString() != "" {
+		q.Set("search", state.Search.ValueString())
+	}
+	path := "/users"
+	if len(q) > 0 {
+		path = path + "?" + q.Encode()
+	}
+
+	response, err := d.client.Get(path)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to Read Imply Users", err.Error())
+		return
+	}
+
+	rawUsers, ok := response["values"].([]any)
+	if !ok {
+		resp.Diagnostics.AddError("Invalid Response Format", fmt.Sprintf("Expected []any in values field, got: %T", response["values"]))
+		return
+	}
+
+	state.Items = make([]UserModel, 0, len(rawUsers))
+	for _, rawUser := range rawUsers {
+		userMap, ok := rawUser.(map[string]any)
+		if !ok {
+			continue
+		}
+		state.Items = append(state.Items, decodeUser(userMap))
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-// Configure adds the provider configured client to the data source.
 func (d *usersDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
-
-	client, ok := req.ProviderData.(*client.Client)
+	c, ok := req.ProviderData.(*client.Client)
 	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
-		)
+		resp.Diagnostics.AddError("Unexpected Data Source Configure Type", fmt.Sprintf("Expected *client.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData))
 		return
 	}
-
-	d.client = client
+	d.client = c
 }

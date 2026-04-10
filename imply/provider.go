@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2026
 
 package imply
 
@@ -42,6 +42,20 @@ type implyProvider struct {
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
 	version string
+}
+
+func resolveProviderConfig(config implyProviderModel) (string, string) {
+	host := os.Getenv("IMPLY_HOST")
+	apiKey := os.Getenv("IMPLY_API_KEY")
+
+	if !config.Host.IsNull() {
+		host = config.Host.ValueString()
+	}
+	if !config.ApiKey.IsNull() {
+		apiKey = config.ApiKey.ValueString()
+	}
+
+	return host, apiKey
 }
 
 // Metadata returns the provider type name.
@@ -104,16 +118,7 @@ func (p *implyProvider) Configure(ctx context.Context, req provider.ConfigureReq
 	// Default values to environment variables, but override
 	// with Terraform configuration value if set.
 
-	host := os.Getenv("IMPLY_HOST")
-	apiKey := os.Getenv("IMPLY_API_KEY")
-
-	if !config.Host.IsNull() {
-		host = config.Host.ValueString()
-	}
-
-	if !config.ApiKey.IsNull() {
-		apiKey = config.ApiKey.ValueString()
-	}
+	host, apiKey := resolveProviderConfig(config)
 
 	// If any of the expected configurations are missing, return
 	// errors with provider-specific guidance.
@@ -168,6 +173,8 @@ func (p *implyProvider) DataSources(_ context.Context) []func() datasource.DataS
 		auth.NewGroupsDataSource,
 		auth.NewGroupDataSource,
 		auth.NewPermissionsDataSource,
+		auth.NewEffectivePermissionsDataSource,
+		auth.NewGroupMembersDataSource,
 	}
 }
 
