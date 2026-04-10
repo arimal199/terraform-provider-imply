@@ -1,16 +1,20 @@
-# Terraform Provider test workflow.
-name: Test
+# GitHub workflow syntax lint workflow.
+name: Workflow Lint
 
 on:
   pull_request:
+    paths:
+      - .github/workflows/**
   push:
+    paths:
+      - .github/workflows/**
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  test:
+  actionlint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -20,4 +24,4 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go mod download
-      - run: go test -v -cover ./...
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.8 -shellcheck= .github/workflows/*.yml

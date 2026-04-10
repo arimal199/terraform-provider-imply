@@ -12,6 +12,9 @@ lint:
 generate:
 	cd tools; go generate ./...
 
+gh-workflows-lint:
+	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.8 -shellcheck= .github/workflows/*.yml
+
 fmt:
 	gofmt -s -w -e .
 
@@ -21,4 +24,4 @@ test:
 testacc:
 	TF_ACC=1 go test -v -cover -timeout 120m ./...
 
-.PHONY: fmt lint test testacc build install generate
+.PHONY: fmt lint test testacc build install generate gh-workflows-lint
